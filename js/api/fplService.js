@@ -1,36 +1,47 @@
-import { CONFIG } from '../config.js';
+import { LEAGUE_ID } from '../config.js';
+
+// Usar proxy CORS para contornar bloqueio do browser
+const PROXY = 'https://corsproxy.io/?';
+const BASE_URL = 'https://fantasy.premierleague.com/api';
 
 export async function fetchLeagueStandings() {
-  const proxy = 'https://corsproxy.io/?';
-  const leagueUrl = `${proxy}${encodeURIComponent(`https://fantasy.premierleague.com/api/leagues-classic/${CONFIG.LEAGUE_ID}/standings/`)}`;
+  const standingsUrl = `${PROXY}${encodeURIComponent(`${BASE_URL}/leagues-classic/${LEAGUE_ID}/standings/`)}`;
   
-  const res = await fetch(leagueUrl);
-  if (!res.ok) throw new Error('Falha ao obter classificação da liga');
+  const res = await fetch(standingsUrl);
+  if (!res.ok) throw new Error('Não foi possível aceder à Liga FPL');
   
   const data = await res.json();
-  const standings = data.standings.results;
+  const results = data.standings?.results || [];
 
-  const entriesPromises = standings.map(async (entry) => {
-    const historyUrl = `${proxy}${encodeURIComponent(`https://fantasy.premierleague.com/api/entry/${entry.entry}/history/`)}`;
-    const hRes = await fetch(historyUrl);
-    const hData = await hRes.json();
-    
-    const gwPoints = Array(CONFIG.TOTAL_GWS).fill(null);
-    if (hData.current) {
-      hData.current.forEach(w => {
-        gwPoints[w.event - 1] = w.points;
-      });
-    }
+  // Mapeia os managers mesmo sem histórico de jornadas ainda
+  const managers = await Promise.all(
+    results.map(async (entry) => {
+      let historyData = [];
+      try {
+        const histUrl = `${PROXY}${encodeURIComponent(`${BASE_URL}/entry/${entry.entry}/history/`)}`;
+        const histRes = await fetch(histUrl);
+        if (histRes.ok) {
+          const histJson = await histRes.json();
+          historyData = histJson.current || [];
+        }
+      } catch (e) {
+        historyData = [];
+      }
 
-    return {
-      id: entry.entry,
-      name: entry.player_name,
-      team: entry.entry_name,
-      currentGW: entry.event_total,
-      totalPts: entry.total,
-      gwPoints
-    };
-  });
+      // Se a época ainda não começou, define 0 pontos e histórico vazio seguro
+      const currentGWPoints = historyData.length > 0 ? historyData[historyData.length - 1].points : 0;
+      const totalPoints = entry.total || 0;
 
-  return Promise.all(entriesPromises);
+      return {
+        id: entry.entry,
+        name: entry.player_name,
+        team: entry.entry_name,
+        currentGW: currentGWPoints,
+        totalPts: totalPoints,
+        history: historyData // Array vazio [] antes da GW1 arrancar
+      };
+    })
+  );
+
+  return managers;
 }
