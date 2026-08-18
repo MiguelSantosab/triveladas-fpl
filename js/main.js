@@ -4,32 +4,6 @@ import { renderGeralTable, renderCurrentGWTable } from './ui/renderGeral.js';
 import { renderFinanceSection } from './ui/renderFinance.js';
 import { renderHistoryStats } from './ui/renderHistory.js';
 
-// 1. REGISTO IMEDIATO DAS ABAS (Funciona sempre, mesmo offline)
-window.switchTab = function (tabId, btn) {
-  // Esconder todas as abas
-  document.querySelectorAll('.tab-content').forEach(el => {
-    el.style.display = 'none';
-    el.classList.remove('active');
-  });
-
-  // Remover estado ativo dos botões
-  document.querySelectorAll('nav button').forEach(el => {
-    el.classList.remove('active');
-  });
-
-  // Ativar aba pretendida
-  const target = document.getElementById(tabId);
-  if (target) {
-    target.style.display = 'block';
-    target.classList.add('active');
-  }
-
-  // Ativar botão clicado
-  if (btn) {
-    btn.classList.add('active');
-  }
-};
-
 let state = {
   leagueData: [],
   costsMatrix: {}
@@ -56,7 +30,7 @@ function renderMiniTables() {
               <td>${m.fine.toFixed(2)} €</td>
             </tr>
           `).join('')
-        : '<tr><td colspan="4" style="text-align:center;color:#888;">Pré-Época / A decorrer</td></tr>';
+        : '<tr><td colspan="4" style="text-align:center;color:#888;">Pré-Época</td></tr>';
     }
   });
 }
@@ -106,14 +80,14 @@ function updateUI() {
   renderHistoryStats();
 }
 
-// 2. INICIALIZAÇÃO SEGURA
 async function init() {
-  // Renderiza imediatamente as abas estáticas (ex: histórico de campeões)
+  const loader = document.getElementById('loading-indicator');
+  
+  // Renderiza imediatamente o que é estático
   renderHistoryStats();
   renderMatrixSection();
   renderMiniTables();
 
-  const loader = document.getElementById('loading-indicator');
   try {
     state.leagueData = await fetchLeagueStandings();
     state.costsMatrix = calculateCostsMatrix(state.leagueData);
@@ -121,9 +95,9 @@ async function init() {
     updateUI();
   } catch (err) {
     if (loader) {
-      loader.innerHTML = '<span style="color:#d97706;">⚠️ Liga em fase de pré-época ou a aguardar dados da Fantasy. As abas estão disponíveis.</span>';
+      loader.innerHTML = '<span style="color:#d97706; font-size:0.9rem;">⚠️ Modo offline / Pré-época. Histórico e estatísticas disponíveis.</span>';
     }
-    console.warn('API FPL:', err);
+    console.warn(err);
     updateUI();
   }
 }

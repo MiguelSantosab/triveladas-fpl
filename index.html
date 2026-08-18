@@ -263,8 +263,31 @@
         </div>
 
     </div>
+<!-- Script global para garantir que as abas abrem SEMPRE, mesmo com erros de API -->
+  <script>
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(function (el) {
+        el.style.display = 'none';
+        el.classList.remove('active');
+      });
 
-    <script type="module" src="js/main.js"></script>
+      document.querySelectorAll('nav button').forEach(function (el) {
+        el.classList.remove('active');
+      });
+
+      var target = document.getElementById(tabId);
+      if (target) {
+        target.style.display = 'block';
+        target.classList.add('active');
+      }
+
+      if (btn) {
+        btn.classList.add('active');
+      }
+    }
+  </script>
+
+  <!-- Módulo com a lógica da FPL -->
+  <script type="module" src="js/main.js"></script>
 </body>
-
 </html>
