@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triveladas no Bujão - 26/27</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>TRIVELADAS NO BUJÃO - 26/27</h1>
+        <nav>
+            <button class="active" onclick="switchTab('tab-main', this)">Visão Geral</button>
+            <button onclick="switchTab('tab-matrix', this)">Jornadas</button>
+            <button onclick="switchTab('tab-history', this)">Histórico & Extras</button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div id="loading-indicator">A carregar dados da Fantasy Premier League...</div>
+
+        <!-- TAB 1: VISÃO GERAL -->
+        <div id="tab-main" class="tab-content active">
+
+            <div class="banner-container">
+                <img src="img/london.PNG" alt="Banner Triveladas no Bujão"
+                    style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Regras Oficiais da Liga</h2>
+                <p style="font-size: 0.95rem; line-height: 1.5; color: #444;">
+                    • <strong>Taxa de Entrada:</strong> 10,00 €<br>
+                    • <strong>Mensalidade:</strong> 2,00 € na 1.ª jornada de cada mês.<br>
+                    • <strong>Taxa de Jornada:</strong> 1.ª metade da tabela não paga (0,00 €). A 2.ª metade paga 0,50
+                    €. Empates na linha de corte ficam ambos isentos.<br>
+                    • <strong>Mini-Ligas:</strong> GW1-GW10, GW11-GW20, GW21-GW30 e GW31-GW38. O 1.º não paga, cada
+                    posição seguinte soma 0,50 € de multa.
+                </p>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <h2 class="card-title">Classificação Geral</h2>
+                    <div class="table-responsive">
+                        <table id="table-geral">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Manager</th>
+                                    <th>Equipa</th>
+                                    <th>GW Pts</th>
+                                    <th>Total Pts</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="card-title">Gameweek Atual</h2>
+                    <div class="table-responsive">
+                        <table id="table-gw">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Manager</th>
+                                    <th>Pontos</th>
+                                    <th>Taxa GW</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Mini-Ligas</h2>
+                <div class="grid-mini">
+                    <div>
+                        <h4 style="margin-bottom:8px; color:#444;">GW 1 - GW 10</h4>
+                        <table id="mini-1">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Manager</th>
+                                    <th>Pts</th>
+                                    <th>Multa</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom:8px; color:#444;">GW 11 - GW 20</h4>
+                        <table id="mini-2">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Manager</th>
+                                    <th>Pts</th>
+                                    <th>Multa</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom:8px; color:#444;">GW 21 - GW 30</h4>
+                        <table id="mini-3">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Manager</th>
+                                    <th>Pts</th>
+                                    <th>Multa</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom:8px; color:#444;">GW 31 - GW 38</h4>
+                        <table id="mini-4">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Manager</th>
+                                    <th>Pts</th>
+                                    <th>Multa</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Controlo Financeiro</h2>
+                <div class="finance-stats">
+                    <div class="stat-box">
+                        <div class="num" id="stat-total">0,00 €</div>
+                        <div class="lbl">Total Previsto</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="num" id="stat-real" style="color: #059669;">0,00 €</div>
+                        <div class="lbl">Total Pago (Real)</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="num" id="stat-media">0,00 €</div>
+                        <div class="lbl">Média / Manager</div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="table-finance">
+                        <thead>
+                            <tr>
+                                <th>Manager</th>
+                                <th>Total Multas</th>
+                                <th>Pago (Editável)</th>
+                                <th>Em Dívida</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TAB 2: MATRIZ DE JORNADAS -->
+        <div id="tab-matrix" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Valores Devidos por Jornada (GW 1 a 19)</h2>
+                <div class="table-responsive">
+                    <table class="matrix-table" id="matrix-part1">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Valores Devidos por Jornada (GW 20 a 38)</h2>
+                <div class="table-responsive">
+                    <table class="matrix-table" id="matrix-part2">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: HISTÓRICO & EXTRAS -->
+        <div id="tab-history" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Histórico de Campeões - Triveladas no Bujão</h2>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Época</th>
+                                <th>Campeão</th>
+                                <th>Vice-Campeão</th>
+                                <th>3.º Lugar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>19/20</td>
+                                <td><strong>Ferros</strong></td>
+                                <td>Guilhas</td>
+                                <td>Rafa</td>
+                            </tr>
+                            <tr>
+                                <td>20/21</td>
+                                <td><strong>Miguel</strong></td>
+                                <td>Ferros</td>
+                                <td>Rafa</td>
+                            </tr>
+                            <tr>
+                                <td>21/22</td>
+                                <td><strong>Ferros</strong></td>
+                                <td>Rafa</td>
+                                <td>Miguel</td>
+                            </tr>
+                            <tr>
+                                <td>22/23</td>
+                                <td><strong>Miga</strong></td>
+                                <td>Miguel</td>
+                                <td>Ferros</td>
+                            </tr>
+                            <tr>
+                                <td>23/24</td>
+                                <td><strong>Miguel</strong></td>
+                                <td>Mota</td>
+                                <td>Pires</td>
+                            </tr>
+                            <tr>
+                                <td>24/25</td>
+                                <td><strong>Pires</strong></td>
+                                <td>Miguel</td>
+                                <td>Hugo</td>
+                            </tr>
+                            <tr>
+                                <td>25/26</td>
+                                <td><strong>Miguel</strong></td>
+                                <td>Ferros</td>
+                                <td>Rafa</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

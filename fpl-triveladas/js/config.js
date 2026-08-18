@@ -1,0 +1,8 @@
+export const CONFIG = {
+  LEAGUE_ID: '1123735',
+  START_OF_MONTH_GWS: [1, 4, 7, 10, 14, 20, 24, 29, 32, 35],
+  BASE_MONTHLY_FEE: 2.00,
+  GW_FINE: 0.50,
+  MINI_LEAGUE_STEP: 0.50,
+  TOTAL_GWS: 38
+};
