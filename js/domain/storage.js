@@ -9,7 +9,7 @@ export function getCustomFines() {
         const data = localStorage.getItem(STORAGE_KEYS.CUSTOM_FINES);
         return data ? JSON.parse(data) : {};
     } catch (e) {
-        console.error("Erro ao ler multas do localStorage:", e);
+        console.error("Erro ao ler multas:", e);
         return {};
     }
 }
@@ -18,11 +18,11 @@ export function saveCustomFines(fines) {
     try {
         localStorage.setItem(STORAGE_KEYS.CUSTOM_FINES, JSON.stringify(fines));
     } catch (e) {
-        console.error("Erro ao gravar multas no localStorage:", e);
+        console.error("Erro ao gravar multas:", e);
     }
 }
 
-export function setManagerCustomFine(entryId, fineType, value) {
+export function saveCustomFine(entryId, fineType, value) {
     const fines = getCustomFines();
     if (!fines[entryId]) {
         fines[entryId] = {};
@@ -31,13 +31,16 @@ export function setManagerCustomFine(entryId, fineType, value) {
     saveCustomFines(fines);
 }
 
+export const setManagerCustomFine = saveCustomFine;
+export const getCustomFine = getCustomFines;
+
 // --- PAGAMENTOS ---
 export function getSavedPayments() {
     try {
         const data = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
         return data ? JSON.parse(data) : {};
     } catch (e) {
-        console.error("Erro ao ler pagamentos do localStorage:", e);
+        console.error("Erro ao ler pagamentos:", e);
         return {};
     }
 }
@@ -46,12 +49,14 @@ export function savePayments(payments) {
     try {
         localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(payments));
     } catch (e) {
-        console.error("Erro ao gravar pagamentos no localStorage:", e);
+        console.error("Erro ao gravar pagamentos:", e);
     }
 }
 
-export function setManagerPayment(entryId, amount) {
+export function savePayment(entryId, amount) {
     const payments = getSavedPayments();
     payments[entryId] = Number(amount) || 0;
     savePayments(payments);
 }
+
+export const setManagerPayment = savePayment;
