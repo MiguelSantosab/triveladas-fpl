@@ -1,34 +1,41 @@
-export function renderGeralTable(leagueData) {
-  const sorted = [...leagueData].sort((a, b) => b.totalPts - a.totalPts);
-  const tbody = document.querySelector('#table-geral tbody');
-  
-  tbody.innerHTML = sorted.map((m, i) => `
-    <tr>
-      <td><strong>${i + 1}</strong></td>
-      <td>${m.name}</td>
-      <td><span style="color:#666">${m.team}</span></td>
-      <td>${m.currentGW}</td>
-      <td><strong>${m.totalPts}</strong></td>
-    </tr>
-  `).join('');
-}
+export function renderGeral(standings = [], finesData = {}, currentGW = 1) {
+    const tbody = document.getElementById('table-geral-body');
+    if (!tbody) return;
 
-export function renderCurrentGWTable(leagueData) {
-  const sorted = [...leagueData].sort((a, b) => b.currentGW - a.currentGW);
-  const N = sorted.length;
-  const cutoffIdx = Math.floor(N / 2);
-  const cutoffScore = sorted[cutoffIdx - 1]?.currentGW;
+    tbody.innerHTML = '';
 
-  const tbody = document.querySelector('#table-gw tbody');
-  tbody.innerHTML = sorted.map((m, i) => {
-    const exempt = i < cutoffIdx || m.currentGW === cutoffScore;
-    return `
-      <tr>
-        <td><strong>${i + 1}</strong></td>
-        <td>${m.name}</td>
-        <td><strong>${m.currentGW}</strong></td>
-        <td><span style="color:${exempt ? '#059669' : '#dc2626'}; font-weight:600;">${exempt ? '0,00 €' : '0,50 €'}</span></td>
-      </tr>
-    `;
-  }).join('');
+    if (!standings || standings.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum manager encontrado na liga.</td></tr>`;
+        return;
+    }
+
+    standings.forEach((manager, index) => {
+        const tr = document.createElement('tr');
+        
+        const fineObj = finesData[manager.entry] || { total: 0 };
+        const fineValue = fineObj.total || 0;
+        
+        const rank = manager.rank || (index + 1);
+        const playerName = manager.player_name || 'Manager';
+        const teamName = manager.entry_name || 'Equipa';
+        const gwPoints = manager.event_total !== undefined ? manager.event_total : 0;
+        const totalPoints = manager.total !== undefined ? manager.total : 0;
+
+        tr.innerHTML = `
+            <td class="text-center font-bold">${rank}</td>
+            <td>
+                <div class="manager-cell">
+                    <span class="team-name font-bold">${teamName}</span>
+                    <span class="player-name text-muted text-sm">${playerName}</span>
+                </div>
+            </td>
+            <td class="text-center font-semibold">${gwPoints}</td>
+            <td class="text-center font-bold text-primary">${totalPoints}</td>
+            <td class="text-center font-semibold ${fineValue > 0 ? 'text-danger' : 'text-success'}">
+                ${fineValue.toFixed(2)}€
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
 }
