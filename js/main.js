@@ -1,105 +1,155 @@
-import { fetchLeagueStandings } from './api/fplService.js';
-import { calculateCostsMatrix, calculateMiniLeague } from './domain/calculations.js';
-import { renderGeralTable, renderCurrentGWTable } from './ui/renderGeral.js';
-import { renderFinanceSection } from './ui/renderFinance.js';
-import { renderHistoryStats } from './ui/renderHistory.js';
+import { CONFIG } from './config.js';
+import { getLeagueStandings, getBootstrapStatic, getManagerHistory } from './api/fplService.js';
+import { calculateAllFines, calculateMonthlyWinners } from './domain/calculations.js';
+import { getCustomFines } from './domain/storage.js';
+import { renderGeral } from './ui/renderGeral.js';
+import { renderMiniLeagues } from './ui/renderMini.js';
+import { renderMatrix } from './ui/renderMatrix.js';
+import { renderFinance } from './ui/renderFinance.js';
 
-let state = {
-  leagueData: [],
-  costsMatrix: {}
+let appState = {
+    bootstrap: null,
+    standings: null,
+    currentGW: 1,
+    histories: {},
+    finesData: null,
+    monthlyData: null
 };
 
-function renderMiniTables() {
-  const blocks = [
-    { id: 'mini-1', start: 1, end: 10 },
-    { id: 'mini-2', start: 11, end: 20 },
-    { id: 'mini-3', start: 21, end: 30 },
-    { id: 'mini-4', start: 31, end: 38 }
-  ];
-
-  blocks.forEach(b => {
-    const res = calculateMiniLeague(state.leagueData, b.start, b.end);
-    const tbody = document.querySelector(`#${b.id} tbody`);
-    if (tbody) {
-      tbody.innerHTML = res.length
-        ? res.map((m, i) => `
-            <tr>
-              <td>${i + 1}</td>
-              <td>${m.name}</td>
-              <td>${m.pts}</td>
-              <td>${m.fine.toFixed(2)} €</td>
-            </tr>
-          `).join('')
-        : '<tr><td colspan="4" style="text-align:center;color:#888;">Pré-Época</td></tr>';
-    }
-  });
-}
-
-function renderMatrixSection() {
-  const renderSub = (tableId, start, end) => {
-    const theadEl = document.querySelector(`#${tableId} thead`);
-    const tbodyEl = document.querySelector(`#${tableId} tbody`);
-    if (!theadEl || !tbodyEl) return;
-
-    let thead = '<tr><th>Manager</th>';
-    for (let g = start; g <= end; g++) thead += `<th>GW${g}</th>`;
-    thead += '</tr>';
-    theadEl.innerHTML = thead;
-
-    let tbody = '';
-    if (state.leagueData.length === 0) {
-      tbody = `<tr><td colspan="${(end - start) + 2}" style="text-align:center;color:#888;">A aguardar arranque da época</td></tr>`;
-    } else {
-      state.leagueData.forEach(m => {
-        tbody += `<tr><td><strong>${m.name}</strong></td>`;
-        for (let g = start - 1; g < end; g++) {
-          const val = state.costsMatrix[m.id] ? state.costsMatrix[m.id][g] : null;
-          if (val === null) {
-            tbody += `<td>-</td>`;
-          } else {
-            const isZero = val === 0;
-            tbody += `<td class="${isZero ? 'matrix-cell-paid' : 'matrix-cell-fine'}">${val.toFixed(2)} €</td>`;
-          }
-        }
-        tbody += `</tr>`;
-      });
-    }
-    tbodyEl.innerHTML = tbody;
-  };
-
-  renderSub('matrix-part1', 1, 19);
-  renderSub('matrix-part2', 20, 38);
-}
-
-function updateUI() {
-  renderGeralTable(state.leagueData);
-  renderCurrentGWTable(state.leagueData);
-  renderMiniTables();
-  renderMatrixSection();
-  renderFinanceSection(state.leagueData, state.costsMatrix);
-  renderHistoryStats();
-}
-
 async function init() {
-  const loader = document.getElementById('loading-indicator');
-  
-  // Renderiza imediatamente o que é estático
-  renderHistoryStats();
-  renderMatrixSection();
-  renderMiniTables();
+    setupNavigation();
+    showLoading(true);
 
-  try {
-    state.leagueData = await fetchLeagueStandings();
-    state.costsMatrix = calculateCostsMatrix(state.leagueData);
-    if (loader) loader.style.display = 'none';
-    updateUI();
-  } catch (err) {
-    if (loader) {
-      loader.innerHTML = '<span style="color:#d97706; font-size:0.9rem;">⚠️ Modo offline / Pré-época. Histórico e estatísticas disponíveis.</span>';
+    try {
+        await loadAllData();
+        renderActiveView('geral');
+        showToast('Dados carregados com sucesso!');
+    } catch (error) {
+        console.error('Erro ao inicializar app:', error);
+        showToast('Erro ao carregar dados da FPL.', 'error');
+    } finally {
+        showLoading(false);
     }
-    console.warn(err);
-    updateUI();
-  }
 }
 
-init();
+async function loadAllData() {
+    // 1. Carregar Bootstrap (Info Geral) e Standings da Liga
+    const [bootstrap, standings] = await Promise.all([
+        getBootstrapStatic(),
+        getLeagueStandings(CONFIG.LEAGUE_ID)
+    ]);
+
+    appState.bootstrap = bootstrap;
+    appState.standings = standings;
+
+    // Descobrir a jornada atual
+    const currentEvent = bootstrap.events.find(e => e.is_current);
+    appState.currentGW = currentEvent ? currentEvent.id : 0;
+
+    // Atualizar badge da GW no header
+    const gwBadge = document.getElementById('current-gw-badge');
+    if (gwBadge) {
+        gwBadge.textContent = appState.currentGW > 0 ? `GW ${appState.currentGW}` : 'Pré-Época';
+    }
+
+    const managers = standings.standings.results || [];
+
+    // 2. Só tenta ir buscar o histórico se já tiver começado alguma GW
+    if (appState.currentGW > 0) {
+        const historyPromises = managers.map(m => 
+            getManagerHistory(m.entry)
+                .then(hist => ({ id: m.entry, hist }))
+                .catch(err => {
+                    console.warn(`Não foi possível carregar histórico do manager ${m.entry}`, err);
+                    return { id: m.entry, hist: { current: [] } };
+                })
+        );
+
+        const historyResults = await Promise.all(historyPromises);
+        historyResults.forEach(res => {
+            appState.histories[res.id] = res.hist;
+        });
+    } else {
+        // Pré-época: histórico vazio por defeito
+        managers.forEach(m => {
+            appState.histories[m.entry] = { current: [] };
+        });
+    }
+
+    // 3. Cálculos de Multas e Mensalidades
+    const customFines = getCustomFines();
+    appState.finesData = calculateAllFines(managers, appState.histories, customFines, appState.currentGW);
+    appState.monthlyData = calculateMonthlyWinners(managers, appState.histories);
+}
+
+function setupNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            navItems.forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+
+            const viewTarget = item.getAttribute('data-view');
+            renderActiveView(viewTarget);
+        });
+    });
+
+    const refreshBtn = document.getElementById('btn-refresh');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => init());
+    }
+}
+
+function renderActiveView(viewName) {
+    document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+
+    const activeSection = document.getElementById(`view-${viewName}`);
+    if (activeSection) {
+        activeSection.classList.add('active');
+    }
+
+    switch (viewName) {
+        case 'geral':
+            renderGeral(appState.standings.standings.results, appState.finesData, appState.currentGW);
+            break;
+        case 'mini':
+            renderMiniLeagues(appState.standings.standings.results, appState.histories, appState.currentGW);
+            break;
+        case 'matrix':
+            renderMatrix(appState.standings.standings.results, appState.histories, appState.currentGW);
+            break;
+        case 'finance':
+            renderFinance(appState.standings.standings.results, appState.finesData, appState.monthlyData, () => {
+                const customFines = getCustomFines();
+                appState.finesData = calculateAllFines(appState.standings.standings.results, appState.histories, customFines, appState.currentGW);
+                renderFinance(appState.standings.standings.results, appState.finesData, appState.monthlyData);
+            });
+            break;
+    }
+}
+
+function showLoading(isLoading) {
+    const loader = document.getElementById('loading-overlay');
+    if (loader) {
+        loader.style.display = isLoading ? 'flex' : 'none';
+    }
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+document.addEventListener('DOMContentLoaded', init);

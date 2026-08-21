@@ -1,58 +1,63 @@
-import { LEAGUE_ID } from '../config.js';
+import { CONFIG } from '../config.js';
 
-const PROXY = 'https://corsproxy.io/?';
-const BASE_URL = 'https://fantasy.premierleague.com/api';
+export async function fetchWithCORS(url) {
+    try {
+        const response = await fetch(url);
+        if (response.ok) return await response.json();
+    } catch (e) {
+        console.warn("Direct fetch failed, trying proxy...", e);
+    }
 
-// Função auxiliar com timeout de 5 segundos
-async function fetchWithTimeout(url, options = {}, timeout = 5000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
+    // Tentar Proxies se o fetch direto falhar por CORS
+    for (const proxy of CONFIG.API.PROXIES) {
+        try {
+            const proxyUrl = `${proxy}${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            if (response.ok) return await response.json();
+        } catch (e) {
+            console.warn(`Proxy ${proxy} failed, trying next...`);
+        }
+    }
+    throw new Error(`Falha ao obter dados de: ${url}`);
 }
 
-export async function fetchLeagueStandings() {
-  const standingsUrl = `${PROXY}${encodeURIComponent(`${BASE_URL}/leagues-classic/${LEAGUE_ID}/standings/`)}`;
-  
-  const res = await fetchWithTimeout(standingsUrl);
-  if (!res.ok) throw new Error('Não foi possível aceder à Liga FPL');
-  
-  const data = await res.json();
-  const results = data.standings?.results || [];
+export async function getLeagueStandings(leagueId = CONFIG.LEAGUE_ID) {
+    const url = `${CONFIG.API.FPL_BASE}/leagues-classic/${leagueId}/standings/`;
+    const data = await fetchWithCORS(url);
 
-  const managers = await Promise.all(
-    results.map(async (entry) => {
-      let historyData = [];
-      try {
-        const histUrl = `${PROXY}${encodeURIComponent(`${BASE_URL}/entry/${entry.entry}/history/`)}`;
-        const histRes = await fetchWithTimeout(histUrl, {}, 3000);
-        if (histRes.ok) {
-          const histJson = await histRes.json();
-          historyData = histJson.current || [];
+    // Fallback: se a GW1 ainda não fechou e standings.results estiver vazio
+    if (data && data.standings && (!data.standings.results || data.standings.results.length === 0)) {
+        if (data.new_entries && data.new_entries.results && data.new_entries.results.length > 0) {
+            data.standings.results = data.new_entries.results.map((entry, index) => ({
+                id: entry.id || index + 1,
+                event_total: 0,
+                player_name: entry.player_first_name 
+                    ? `${entry.player_first_name} ${entry.player_last_name}` 
+                    : (entry.player_name || 'Manager'),
+                rank: index + 1,
+                last_rank: index + 1,
+                rank_sort: index + 1,
+                total: 0,
+                entry: entry.entry,
+                entry_name: entry.entry_name
+            }));
         }
-      } catch (e) {
-        historyData = [];
-      }
+    }
 
-      const currentGWPoints = historyData.length > 0 ? historyData[historyData.length - 1].points : 0;
-      const totalPoints = entry.total || 0;
+    return data;
+}
 
-      return {
-        id: entry.entry,
-        name: entry.player_name,
-        team: entry.entry_name,
-        currentGW: currentGWPoints,
-        totalPts: totalPoints,
-        history: historyData
-      };
-    })
-  );
+export async function getBootstrapStatic() {
+    const url = `${CONFIG.API.FPL_BASE}/bootstrap-static/`;
+    return await fetchWithCORS(url);
+}
 
-  return managers;
+export async function getManagerHistory(entryId) {
+    const url = `${CONFIG.API.FPL_BASE}/entry/${entryId}/history/`;
+    return await fetchWithCORS(url);
+}
+
+export async function getManagerPicks(entryId, eventId) {
+    const url = `${CONFIG.API.FPL_BASE}/entry/${entryId}/event/${eventId}/picks/`;
+    return await fetchWithCORS(url);
 }
