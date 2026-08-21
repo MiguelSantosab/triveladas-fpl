@@ -1,13 +1,28 @@
-import { CONFIG } from '../config.js';
+const STORAGE_KEY = 'triveladas_custom_fines';
 
-const STORAGE_KEY = `fpl_payments_${CONFIG.LEAGUE_ID}`;
-
-export function getSavedPayments() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+export function getCustomFines() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        console.error("Erro ao ler multas personalizadas do localStorage:", e);
+        return {};
+    }
 }
 
-export function savePayment(managerId, amount) {
-  const payments = getSavedPayments();
-  payments[managerId] = parseFloat(amount) || 0;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payments));
+export function saveCustomFines(fines) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fines));
+    } catch (e) {
+        console.error("Erro ao gravar multas personalizadas no localStorage:", e);
+    }
+}
+
+export function setManagerCustomFine(entryId, fineType, value) {
+    const fines = getCustomFines();
+    if (!fines[entryId]) {
+        fines[entryId] = {};
+    }
+    fines[entryId][fineType] = Number(value) || 0;
+    saveCustomFines(fines);
 }
