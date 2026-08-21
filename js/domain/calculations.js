@@ -15,9 +15,11 @@ import { CONFIG } from '../config.js';
 export function calculateAllFines(managers, histories, customFines = {}, currentGW = 1) {
     const fines = {};
 
+    if (!managers || !Array.isArray(managers)) return fines;
+
     managers.forEach(m => {
         const id = m.entry;
-        const history = histories[id];
+        const history = histories ? histories[id] : null;
         
         let totalFines = 0;
         const details = {
@@ -34,13 +36,11 @@ export function calculateAllFines(managers, histories, customFines = {}, current
             history.current.forEach(gw => {
                 let gwFine = 0;
 
-                // Multa por pontuação abaixo do limite
                 if (gw.points < CONFIG.RULES.BELOW_50_POINTS) {
                     gwFine += CONFIG.RULES.FINES.BELOW_50;
                     details.below50 += CONFIG.RULES.FINES.BELOW_50;
                 }
 
-                // Multa por transferências negativas (hits)
                 if (gw.event_transfers_cost > 0) {
                     const hitsCost = (gw.event_transfers_cost / 4) * CONFIG.RULES.FINES.TRANSFER_HIT;
                     gwFine += hitsCost;
@@ -57,8 +57,7 @@ export function calculateAllFines(managers, histories, customFines = {}, current
             });
         }
 
-        // Multas manuais/personalizadas
-        if (customFines[id]) {
+        if (customFines && customFines[id]) {
             const manualSum = Object.values(customFines[id]).reduce((acc, val) => acc + (Number(val) || 0), 0);
             details.custom = manualSum;
             totalFines += manualSum;
@@ -71,6 +70,31 @@ export function calculateAllFines(managers, histories, customFines = {}, current
     });
 
     return fines;
+}
+
+export function calculateMiniLeague(managers, histories, startGW, endGW) {
+    if (!managers || !Array.isArray(managers)) return [];
+
+    return managers.map(m => {
+        const id = m.entry;
+        const history = histories ? histories[id] : null;
+        let points = 0;
+
+        if (history && history.current && history.current.length > 0) {
+            history.current.forEach(gw => {
+                if (gw.event >= startGW && gw.event <= endGW) {
+                    points += gw.points - gw.event_transfers_cost;
+                }
+            });
+        }
+
+        return {
+            entry: m.entry,
+            player_name: m.player_name,
+            entry_name: m.entry_name,
+            points: points
+        };
+    }).sort((a, b) => b.points - a.points);
 }
 
 export function calculateMonthlyWinners(managers, histories) {
