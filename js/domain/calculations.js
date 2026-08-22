@@ -2,91 +2,128 @@
  * calculations.js - Regras de negócio e finanças da liga Triveladas no Bujão
  * 
  * Regras aplicadas:
- * - Taxa de Entrada: 10,00 € (pode ser somada nas finanças gerais se aplicável)
- * - Mensalidades: 2,00 € na 1.ª jornada de cada mês (GW1, GW5, GW9, GW14, GW18, GW22, GW26, GW30, GW34)
+ * - Taxa de Entrada: 10,00 € (gerida em renderFinance)
+ * - Mensalidades: 2,00 € na 1.ª jornada de cada mês
  * - Taxa de Jornada: 1.ª metade da tabela paga 0,00 €; 2.ª metade paga 0,50 €.
  *   (Empates na linha de corte ficam ambos isentos)
- * - Mini-Ligas (blocos de 10 GWs): 1-10, 11-20, 21-30 e 31-38.
- *   (O 1.º não paga nada; cada posição seguinte soma 0,50 € de multa)
+ * - Mini-Ligas: 1-10, 11-20, 21-30 e 31-38.
+ *   (O 1.º não paga; cada posição seguinte soma 0,50 € de multa. Apenas somadas após o fim do bloco)
  */
 
-import { CONFIG } from '../config.js';
-
-export function calculateAllFines(managers, histories, customFines = {}, currentGW = 1) {
+export function calculateAllFines(managers = [], histories = {}, customFines = {}, currentGW = 1) {
     const fines = {};
 
     if (!managers || !Array.isArray(managers)) return fines;
 
+    // Inicializar estrutura para cada manager
     managers.forEach(m => {
-        const id = m.entry;
-        const history = histories ? histories[id] : null;
-        
-        let totalFines = 0;
-        const details = {
-            below50: 0,
-            lastPlace: 0,
-            benchLoss: 0,
-            monthlyLoss: 0,
-            hits: 0,
+        fines[m.entry] = {
+            gwFines: 0,
+            miniFines: 0,
             custom: 0,
+            total: 0,
             gwBreakdown: []
         };
+    });
 
-        if (history && history.current && history.current.length > 0) {
-            history.current.forEach(gw => {
-                let gwFine = 0;
+    // 1. Taxa de Jornada (0,50 € para a 2.ª metade em cada GW decorrida)
+    for (let gw = 1; gw <= currentGW; gw++) {
+        const gwScores = [];
 
-                if (gw.points < CONFIG.RULES.BELOW_50_POINTS) {
-                    gwFine += CONFIG.RULES.FINES.BELOW_50;
-                    details.below50 += CONFIG.RULES.FINES.BELOW_50;
+        managers.forEach(m => {
+            const hist = histories[m.entry]?.current?.find(h => h.event === gw);
+            if (hist) {
+                gwScores.push({ entry: m.entry, points: hist.points });
+            }
+        });
+
+        if (gwScores.length > 0) {
+            // Ordenar por pontos descendentes
+            gwScores.sort((a, b) => b.points - a.points);
+
+            const totalPlayers = gwScores.length;
+            const halfIndex = Math.ceil(totalPlayers / 2); // Linha de corte (ex: 5.º lugar em 9 equipas)
+            const cutoffPoints = gwScores[halfIndex - 1]?.points;
+
+            gwScores.forEach((player, idx) => {
+                const rank = idx + 1;
+                let fee = 0;
+
+                // Paga 0.50€ se estiver na 2.ª metade E com menos pontos que a linha de corte
+                if (rank > halfIndex && player.points < cutoffPoints) {
+                    fee = 0.50;
                 }
 
-                if (gw.event_transfers_cost > 0) {
-                    const hitsCost = (gw.event_transfers_cost / 4) * CONFIG.RULES.FINES.TRANSFER_HIT;
-                    gwFine += hitsCost;
-                    details.hits += hitsCost;
+                if (fines[player.entry]) {
+                    fines[player.entry].gwFines += fee;
+                    fines[player.entry].gwBreakdown.push({
+                        gw: gw,
+                        points: player.points,
+                        fine: fee
+                    });
                 }
-
-                details.gwBreakdown.push({
-                    gw: gw.event,
-                    points: gw.points,
-                    fine: gwFine
-                });
-
-                totalFines += gwFine;
             });
         }
+    }
 
-        if (customFines && customFines[id]) {
-            const manualSum = Object.values(customFines[id]).reduce((acc, val) => acc + (Number(val) || 0), 0);
-            details.custom = manualSum;
-            totalFines += manualSum;
+    // 2. Mini-Ligas (SÓ somam ao total quando o bloco tiver terminado por completo)
+    const miniIntervals = [
+        { start: 1, end: 10 },
+        { start: 11, end: 20 },
+        { start: 21, end: 30 },
+        { start: 31, end: 38 }
+    ];
+
+    miniIntervals.forEach(mini => {
+        // Verifica se a mini-liga já terminou
+        if (currentGW > mini.end) {
+            const miniScores = managers.map(m => {
+                const history = histories[m.entry]?.current || [];
+                let points = 0;
+                history.forEach(gw => {
+                    if (gw.event >= mini.start && gw.event <= mini.end) {
+                        points += gw.points;
+                    }
+                });
+                return { entry: m.entry, points: points };
+            }).sort((a, b) => b.points - a.points);
+
+            // 1.º = 0.00 €, 2.º = 0.50 €, 3.º = 1.00 €, etc.
+            miniScores.forEach((player, idx) => {
+                const fine = idx * 0.50;
+                if (fines[player.entry]) {
+                    fines[player.entry].miniFines += fine;
+                }
+            });
         }
+    });
 
-        fines[id] = {
-            total: totalFines,
-            details: details
-        };
+    // 3. Somatório total
+    managers.forEach(m => {
+        const id = m.entry;
+        const manualSum = (customFines && customFines[id])
+            ? Object.values(customFines[id]).reduce((acc, val) => acc + (Number(val) || 0), 0)
+            : 0;
+
+        fines[id].custom = manualSum;
+        fines[id].total = fines[id].gwFines + fines[id].miniFines + manualSum;
     });
 
     return fines;
 }
 
-export function calculateMiniLeague(managers, histories, startGW, endGW) {
+export function calculateMiniLeague(managers = [], histories = {}, startGW = 1, endGW = 10) {
     if (!managers || !Array.isArray(managers)) return [];
 
     return managers.map(m => {
-        const id = m.entry;
-        const history = histories ? histories[id] : null;
+        const history = histories[m.entry]?.current || [];
         let points = 0;
 
-        if (history && history.current && history.current.length > 0) {
-            history.current.forEach(gw => {
-                if (gw.event >= startGW && gw.event <= endGW) {
-                    points += gw.points - gw.event_transfers_cost;
-                }
-            });
-        }
+        history.forEach(gw => {
+            if (gw.event >= startGW && gw.event <= endGW) {
+                points += gw.points;
+            }
+        });
 
         return {
             entry: m.entry,
