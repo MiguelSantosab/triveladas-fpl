@@ -21,7 +21,7 @@ async function init() {
 
     try {
         await loadAllData();
-        renderAllSections();
+        await renderAllSections();
     } catch (error) {
         console.error('Erro ao inicializar app:', error);
     } finally {
@@ -67,20 +67,14 @@ async function loadAllData() {
     appState.monthlyData = calculateMonthlyWinners(managers, appState.histories);
 }
 
-function renderAllSections() {
+async function renderAllSections() {
     const managers = appState.standings?.standings?.results || [];
 
-    // Renderiza todas as tabelas logo no arranque
     renderGeral(managers, appState.finesData, appState.currentGW);
     renderMiniLeagues(managers, appState.histories, appState.currentGW);
     renderMatrix(managers, appState.histories, appState.currentGW);
-    renderFinance(managers, appState.finesData, appState.monthlyData, () => {
-    const customFines = (typeof getCustomFines === 'function') ? getCustomFines() : {};
-    appState.finesData = calculateAllFines(managers, appState.histories, customFines, appState.currentGW);
-    renderFinance(managers, appState.finesData, appState.monthlyData, null, appState.currentGW);
-}, appState.currentGW);
-    };
-
+    await renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW);
+}
 
 function showLoading(isLoading) {
     const loader = document.getElementById('loading-indicator');
