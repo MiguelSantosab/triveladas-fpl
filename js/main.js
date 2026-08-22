@@ -75,11 +75,12 @@ function renderAllSections() {
     renderMiniLeagues(managers, appState.histories, appState.currentGW);
     renderMatrix(managers, appState.histories, appState.currentGW);
     renderFinance(managers, appState.finesData, appState.monthlyData, () => {
-        const customFines = (typeof getCustomFines === 'function') ? getCustomFines() : {};
-        appState.finesData = calculateAllFines(managers, appState.histories, customFines, appState.currentGW);
-        renderFinance(managers, appState.finesData, appState.monthlyData);
-    });
-}
+    const customFines = (typeof getCustomFines === 'function') ? getCustomFines() : {};
+    appState.finesData = calculateAllFines(managers, appState.histories, customFines, appState.currentGW);
+    renderFinance(managers, appState.finesData, appState.monthlyData, null, appState.currentGW);
+}, appState.currentGW);
+    };
+
 
 function showLoading(isLoading) {
     const loader = document.getElementById('loading-indicator');
