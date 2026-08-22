@@ -5,7 +5,7 @@
  * - Taxa de Entrada: 10,00 € (gerida em renderFinance)
  * - Mensalidades: 2,00 € na 1.ª jornada de cada mês
  * - Taxa de Jornada: 1.ª metade da tabela paga 0,00 €; 2.ª metade paga 0,50 €.
- *   (Empates na linha de corte ficam ambos isentos)
+ *   (Com 9 equipas: 4 isentos e 5 pagam; empates na linha de corte isentos)
  * - Mini-Ligas: 1-10, 11-20, 21-30 e 31-38.
  *   (O 1.º não paga; cada posição seguinte soma 0,50 € de multa. Apenas somadas após o fim do bloco)
  */
@@ -30,7 +30,7 @@ export function calculateAllFines(managers = [], histories = {}, customFines = {
         managers.forEach(m => {
             let pts = 0;
             if (gw === currentGW && m.event_total !== undefined) {
-                pts = m.event_total; // Pontos ao vivo na jornada corrente
+                pts = m.event_total;
             } else {
                 const hist = histories[m.entry]?.current?.find(h => h.event === gw);
                 pts = hist ? hist.points : 0;
@@ -41,7 +41,7 @@ export function calculateAllFines(managers = [], histories = {}, customFines = {
         if (gwScores.length > 0) {
             gwScores.sort((a, b) => b.points - a.points);
 
-            // Math.floor garante que 4 ficam isentos e 5 pagam
+            // 4 ficam isentos e 5 pagam
             const freeCount = Math.floor(gwScores.length / 2);
             const cutoffPoints = gwScores[freeCount - 1]?.points;
 
@@ -102,4 +102,30 @@ export function calculateAllFines(managers = [], histories = {}, customFines = {
     });
 
     return fines;
+}
+
+export function calculateMiniLeague(managers = [], histories = {}, startGW = 1, endGW = 10) {
+    if (!managers || !Array.isArray(managers)) return [];
+
+    return managers.map(m => {
+        const history = histories[m.entry]?.current || [];
+        let points = 0;
+
+        history.forEach(gw => {
+            if (gw.event >= startGW && gw.event <= endGW) {
+                points += gw.points;
+            }
+        });
+
+        return {
+            entry: m.entry,
+            player_name: m.player_name,
+            entry_name: m.entry_name,
+            points: points
+        };
+    }).sort((a, b) => b.points - a.points);
+}
+
+export function calculateMonthlyWinners(managers, histories) {
+    return [];
 }
