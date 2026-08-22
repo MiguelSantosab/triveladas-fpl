@@ -1,34 +1,26 @@
 import { CONFIG } from '../config.js';
 
-export async function fetchWithCORS(url) {
-    // 1. Tentar os proxies
-    for (const proxy of CONFIG.API.PROXIES) {
-        try {
-            const proxyUrl = `${proxy}${encodeURIComponent(url)}`;
-            const response = await fetch(proxyUrl);
-            if (response.ok) {
-                const data = await response.json();
-                return data;
-            }
-        } catch (e) {
-            console.warn(`Proxy ${proxy} falhou, a tentar o próximo...`);
-        }
-    }
-
-    // 2. Tentar direto como último recurso
+// Função auxiliar para chamar a Serverless Function na Vercel (/api/fpl)
+async function fetchFPL(endpoint) {
+    const url = `/api/fpl?endpoint=${encodeURIComponent(endpoint)}`;
+    
     try {
         const response = await fetch(url);
-        if (response.ok) return await response.json();
-    } catch (e) {
-        console.error(`Erro ao carregar URL: ${url}`, e);
+        
+        if (!response.ok) {
+            throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error(`Erro ao carregar endpoint: ${endpoint}`, error);
+        throw error;
     }
-
-    throw new Error(`Falha total ao obter dados de: ${url}`);
 }
 
 export async function getLeagueStandings(leagueId = CONFIG.LEAGUE_ID) {
-    const url = `${CONFIG.API.FPL_BASE}/leagues-classic/${leagueId}/standings/`;
-    const data = await fetchWithCORS(url);
+    const endpoint = `leagues-classic/${leagueId}/standings/`;
+    const data = await fetchFPL(endpoint);
     console.log("Dados recebidos da Liga:", data);
 
     if (!data.standings) {
@@ -59,11 +51,13 @@ export async function getLeagueStandings(leagueId = CONFIG.LEAGUE_ID) {
 }
 
 export async function getBootstrapStatic() {
-    const url = `${CONFIG.API.FPL_BASE}/bootstrap-static/`;
-    return await fetchWithCORS(url);
+    return await fetchFPL('bootstrap-static/');
 }
 
 export async function getManagerHistory(entryId) {
-    const url = `${CONFIG.API.FPL_BASE}/entry/${entryId}/history/`;
-    return await fetchWithCORS(url);
+    return await fetchFPL(`entry/${entryId}/history/`);
+}
+
+export async function getManagerPicks(entryId, eventId) {
+    return await fetchFPL(`entry/${entryId}/event/${eventId}/picks/`);
 }
