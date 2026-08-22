@@ -1,5 +1,5 @@
 export const CONFIG = {
-    LEAGUE_ID: 1123735, // Confirma se este é o teu ID de liga
+    LEAGUE_ID: 1123735, 
     API: {
         FPL_BASE: 'https://fantasy.premierleague.com/api',
         PROXIES: [

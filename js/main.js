@@ -42,20 +42,24 @@ async function loadAllData() {
     appState.bootstrap = bootstrap;
     appState.standings = standings;
 
-    // Descobrir a jornada atual
-    const currentEvent = bootstrap.events.find(e => e.is_current);
-    appState.currentGW = currentEvent ? currentEvent.id : 0;
+    // Detetar GW de forma segura (is_current -> última finished -> is_next -> fallback GW 1)
+    const currentEvent = bootstrap?.events?.find(e => e.is_current) 
+                      || bootstrap?.events?.filter(e => e.finished).pop() 
+                      || bootstrap?.events?.find(e => e.is_next)
+                      || { id: 1 };
+
+    appState.currentGW = currentEvent ? currentEvent.id : 1;
 
     // Atualizar badge da GW no header
     const gwBadge = document.getElementById('current-gw-badge');
     if (gwBadge) {
-        gwBadge.textContent = appState.currentGW > 0 ? `GW ${appState.currentGW}` : 'Pré-Época';
+        gwBadge.textContent = `GW ${appState.currentGW}`;
     }
 
-    const managers = standings.standings.results || [];
+    const managers = standings?.standings?.results || [];
 
-    // 2. Só tenta ir buscar o histórico se já tiver começado alguma GW
-    if (appState.currentGW > 0) {
+    // 2. Carregar o histórico de cada manager
+    if (managers.length > 0) {
         const historyPromises = managers.map(m => 
             getManagerHistory(m.entry)
                 .then(hist => ({ id: m.entry, hist }))
@@ -69,15 +73,10 @@ async function loadAllData() {
         historyResults.forEach(res => {
             appState.histories[res.id] = res.hist;
         });
-    } else {
-        // Pré-época: histórico vazio por defeito
-        managers.forEach(m => {
-            appState.histories[m.entry] = { current: [] };
-        });
     }
 
     // 3. Cálculos de Multas e Mensalidades
-    const customFines = getCustomFines();
+    const customFines = (typeof getCustomFines === 'function') ? getCustomFines() : {};
     appState.finesData = calculateAllFines(managers, appState.histories, customFines, appState.currentGW);
     appState.monthlyData = calculateMonthlyWinners(managers, appState.histories);
 }
@@ -109,21 +108,23 @@ function renderActiveView(viewName) {
         activeSection.classList.add('active');
     }
 
+    const managers = appState.standings?.standings?.results || [];
+
     switch (viewName) {
         case 'geral':
-            renderGeral(appState.standings.standings.results, appState.finesData, appState.currentGW);
+            renderGeral(managers, appState.finesData, appState.currentGW);
             break;
         case 'mini':
-            renderMiniLeagues(appState.standings.standings.results, appState.histories, appState.currentGW);
+            renderMiniLeagues(managers, appState.histories, appState.currentGW);
             break;
         case 'matrix':
-            renderMatrix(appState.standings.standings.results, appState.histories, appState.currentGW);
+            renderMatrix(managers, appState.histories, appState.currentGW);
             break;
         case 'finance':
-            renderFinance(appState.standings.standings.results, appState.finesData, appState.monthlyData, () => {
-                const customFines = getCustomFines();
-                appState.finesData = calculateAllFines(appState.standings.standings.results, appState.histories, customFines, appState.currentGW);
-                renderFinance(appState.standings.standings.results, appState.finesData, appState.monthlyData);
+            renderFinance(managers, appState.finesData, appState.monthlyData, () => {
+                const customFines = (typeof getCustomFines === 'function') ? getCustomFines() : {};
+                appState.finesData = calculateAllFines(managers, appState.histories, customFines, appState.currentGW);
+                renderFinance(managers, appState.finesData, appState.monthlyData);
             });
             break;
     }
