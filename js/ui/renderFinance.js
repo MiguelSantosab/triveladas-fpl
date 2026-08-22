@@ -1,56 +1,59 @@
 import { getSavedPayments, savePayment } from '../domain/storage.js';
-import { calculateMiniLeague } from '../domain/calculations.js';
 
-export function renderFinance(leagueData, costsMatrix, onUpdateCallback) {
-    const mini1 = calculateMiniLeague(leagueData, 1, 10);
-    const mini2 = calculateMiniLeague(leagueData, 11, 20);
-    const mini3 = calculateMiniLeague(leagueData, 21, 30);
-    const mini4 = calculateMiniLeague(leagueData, 31, 38);
+export function renderFinance(standings = [], finesData = {}, monthlyData = null, onUpdateCallback = null) {
+    const tbody = document.querySelector('#table-finance tbody');
+    if (!tbody) {
+        console.warn("Elemento #table-finance tbody não encontrado.");
+        return;
+    }
 
-    const payments = getSavedPayments();
+    const payments = (typeof getSavedPayments === 'function') ? getSavedPayments() : {};
     let grandTotal = 0;
     let totalPaid = 0;
 
-    const tbody = document.querySelector('#table-finance tbody');
-    if (!tbody) return;
+    tbody.innerHTML = standings.map(manager => {
+        const managerId = manager.entry;
+        const managerName = manager.player_name || manager.entry_name || 'Manager';
 
-    tbody.innerHTML = leagueData.map(m => {
-        const gwTotal = (costsMatrix[m.id] || []).reduce((acc, v) => acc + (v || 0), 0);
-        const m1 = mini1.find(x => x.id === m.id)?.fine || 0;
-        const m2 = mini2.find(x => x.id === m.id)?.fine || 0;
-        const m3 = mini3.find(x => x.id === m.id)?.fine || 0;
-        const m4 = mini4.find(x => x.id === m.id)?.fine || 0;
+        // Obter total de multas calculadas
+        const fineObj = (finesData && finesData[managerId]) ? finesData[managerId] : { total: 0 };
+        const totalDebt = fineObj.total || 0;
 
-        const totalDebt = gwTotal + m1 + m2 + m3 + m4;
-        const paid = payments[m.id] !== undefined ? payments[m.id] : 0;
+        const paid = payments[managerId] !== undefined ? Number(payments[managerId]) : 0;
         const remaining = totalDebt - paid;
 
         grandTotal += totalDebt;
         totalPaid += paid;
 
         return `
-      <tr>
-        <td><strong>${m.name}</strong></td>
-        <td>${totalDebt.toFixed(2)} €</td>
-        <td>
-          <input type="number" step="0.50" class="input-pago" data-id="${m.id}" value="${paid.toFixed(2)}"> €
-        </td>
-        <td style="color:${remaining > 0 ? '#dc2626' : '#059669'}; font-weight:700;">${remaining.toFixed(2)} €</td>
-      </tr>
-    `;
+            <tr>
+                <td><strong>${managerName}</strong></td>
+                <td>${totalDebt.toFixed(2)} €</td>
+                <td>
+                    <input type="number" step="0.50" class="input-pago" data-id="${managerId}" value="${paid.toFixed(2)}"> €
+                </td>
+                <td style="color:${remaining > 0 ? '#dc2626' : '#059669'}; font-weight:700;">${remaining.toFixed(2)} €</td>
+            </tr>
+        `;
     }).join('');
 
+    // Atualizar totais do sumário
     const elTotal = document.getElementById('stat-total');
     const elReal = document.getElementById('stat-real');
     const elMedia = document.getElementById('stat-media');
 
     if (elTotal) elTotal.innerText = `${grandTotal.toFixed(2)} €`;
     if (elReal) elReal.innerText = `${totalPaid.toFixed(2)} €`;
-    if (elMedia) elMedia.innerText = `${(grandTotal / (leagueData.length || 1)).toFixed(2)} €`;
+    if (elMedia) elMedia.innerText = `${(grandTotal / (standings.length || 1)).toFixed(2)} €`;
 
+    // Event listeners para os inputs de pagamento
     tbody.querySelectorAll('.input-pago').forEach(input => {
         input.addEventListener('change', (e) => {
-            savePayment(e.target.getAttribute('data-id'), e.target.value);
+            const id = e.target.getAttribute('data-id');
+            const val = parseFloat(e.target.value) || 0;
+            if (typeof savePayment === 'function') {
+                savePayment(id, val);
+            }
             if (onUpdateCallback) onUpdateCallback();
         });
     });
