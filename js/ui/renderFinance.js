@@ -1,7 +1,7 @@
 import { getSavedPayments, savePayment } from '../domain/storage.js';
 import { calculateMiniLeague } from '../domain/calculations.js';
 
-export function renderFinanceSection(leagueData, costsMatrix, onUpdateCallback) {
+export function renderFinance(leagueData, costsMatrix, onUpdateCallback) {
     const mini1 = calculateMiniLeague(leagueData, 1, 10);
     const mini2 = calculateMiniLeague(leagueData, 11, 20);
     const mini3 = calculateMiniLeague(leagueData, 21, 30);
