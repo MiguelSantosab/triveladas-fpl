@@ -1,8 +1,6 @@
 // js/ui/renderFinance.js
 import { getSavedPayments, savePayment } from '../domain/storage.js';
 
-const ADMIN_PIN = "1920"; // O teu PIN de administração
-
 function checkIsAdmin() {
     return sessionStorage.getItem('triveladas_admin') === 'true';
 }
@@ -18,7 +16,7 @@ export function renderFinance(standings = [], finesData = {}, monthlyData = null
     if (!tbody) return;
 
     const isAdmin = checkIsAdmin();
-    const payments = getSavedPayments();
+    const payments = (typeof getSavedPayments === 'function') ? getSavedPayments() : {};
     let grandTotal = 0;
     let totalPaid = 0;
 
@@ -64,7 +62,9 @@ export function renderFinance(standings = [], finesData = {}, monthlyData = null
             input.addEventListener('change', (e) => {
                 const id = e.target.getAttribute('data-id');
                 const val = parseFloat(e.target.value) || 0;
-                savePayment(id, val);
+                if (typeof savePayment === 'function') {
+                    savePayment(id, val);
+                }
                 renderFinance(standings, finesData, monthlyData, currentGW);
             });
         });
@@ -90,20 +90,33 @@ function setupAdminButton(standings, finesData, monthlyData, currentGW) {
     btn.style.cssText = 'margin-top: 15px; font-size: 0.8rem; background: none; border: 1px dashed #bbb; color: #666; cursor: pointer; padding: 4px 10px; border-radius: 4px; display: block;';
     btn.textContent = checkIsAdmin() ? '🔒 Bloquear Edição' : '🔑 Modo Admin';
 
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
         if (checkIsAdmin()) {
             sessionStorage.removeItem('triveladas_admin');
             alert('Modo Admin desativado.');
+            renderFinance(standings, finesData, monthlyData, currentGW);
         } else {
             const pass = prompt('Introduz o PIN de administrador:');
-            if (pass === ADMIN_PIN) {
-                sessionStorage.setItem('triveladas_admin', 'true');
-                alert('Modo Admin ativado com sucesso!');
-            } else if (pass !== null) {
-                alert('PIN incorreto.');
+            if (!pass) return;
+
+            try {
+                const res = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pass.trim() })
+                });
+
+                if (res.ok) {
+                    sessionStorage.setItem('triveladas_admin', 'true');
+                    alert('Modo Admin ativado com sucesso!');
+                    renderFinance(standings, finesData, monthlyData, currentGW);
+                } else {
+                    alert('PIN incorreto.');
+                }
+            } catch (err) {
+                alert('Erro ao validar o PIN no servidor.');
             }
         }
-        renderFinance(standings, finesData, monthlyData, currentGW);
     });
 
     card.appendChild(btn);
