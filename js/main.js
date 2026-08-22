@@ -21,7 +21,7 @@ async function init() {
 
     try {
         await loadAllData();
-        await renderAllSections();
+        renderAllSections();
     } catch (error) {
         console.error('Erro ao inicializar app:', error);
     } finally {
@@ -67,13 +67,18 @@ async function loadAllData() {
     appState.monthlyData = calculateMonthlyWinners(managers, appState.histories);
 }
 
-async function renderAllSections() {
+function renderAllSections() {
     const managers = appState.standings?.standings?.results || [];
 
+    // Renderiza primeiro o que é síncrono para garantir que a tabela geral aparece logo
     renderGeral(managers, appState.finesData, appState.currentGW);
     renderMiniLeagues(managers, appState.histories, appState.currentGW);
     renderMatrix(managers, appState.histories, appState.currentGW);
-    await renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW);
+    
+    // Renderiza as finanças
+    renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW).catch(err => {
+        console.error("Erro na secção financeira:", err);
+    });
 }
 
 function showLoading(isLoading) {
