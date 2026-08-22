@@ -1,26 +1,24 @@
 // js/ui/renderFinance.js
 import { getSavedPayments, savePayment } from '../domain/storage.js';
 
-function getAdminPin() {
-    return sessionStorage.getItem('triveladas_admin_pin');
+const ADMIN_PIN = "1920"; // O teu PIN de administração
+
+function checkIsAdmin() {
+    return sessionStorage.getItem('triveladas_admin') === 'true';
 }
 
 function calculateMonthlyFees(currentGW = 1) {
-    // 1.ª GW de cada mês
     const monthStartGWs = [1, 4, 7, 11, 14, 20, 24, 28, 31, 36];
     const monthsElapsed = monthStartGWs.filter(gw => currentGW >= gw).length;
     return monthsElapsed * 2.0;
 }
 
-export async function renderFinance(standings = [], finesData = {}, monthlyData = null, currentGW = 1) {
+export function renderFinance(standings = [], finesData = {}, monthlyData = null, currentGW = 1) {
     const tbody = document.querySelector('#table-finance tbody');
     if (!tbody) return;
 
-    const currentPin = getAdminPin();
-    const isAdmin = Boolean(currentPin);
-
-    // Obter dados da Base de Dados Cloud
-    const payments = await getSavedPayments();
+    const isAdmin = checkIsAdmin();
+    const payments = getSavedPayments();
     let grandTotal = 0;
     let totalPaid = 0;
 
@@ -47,7 +45,7 @@ export async function renderFinance(standings = [], finesData = {}, monthlyData 
                 <td>${totalDebt.toFixed(2)} €</td>
                 <td>
                     ${isAdmin 
-                        ? `<input type="number" step="0.50" class="input-pago" data-id="${managerId}" value="${paid.toFixed(2)}" style="width: 75px; padding: 3px 6px; border: 1px solid #00ff87; border-radius: 4px;"> €`
+                        ? `<input type="number" step="0.50" class="input-pago" data-id="${managerId}" value="${paid.toFixed(2)}" style="width: 70px; padding: 2px 4px; border: 1px solid #00ff87; border-radius: 4px;"> €`
                         : `<span>${paid.toFixed(2)} €</span>`
                     }
                 </td>
@@ -63,17 +61,11 @@ export async function renderFinance(standings = [], finesData = {}, monthlyData 
 
     if (isAdmin) {
         tbody.querySelectorAll('.input-pago').forEach(input => {
-            input.addEventListener('change', async (e) => {
+            input.addEventListener('change', (e) => {
                 const id = e.target.getAttribute('data-id');
                 const val = parseFloat(e.target.value) || 0;
-                
-                e.target.disabled = true;
-                const ok = await savePayment(id, val, currentPin);
-                e.target.disabled = false;
-
-                if (ok) {
-                    renderFinance(standings, finesData, monthlyData, currentGW);
-                }
+                savePayment(id, val);
+                renderFinance(standings, finesData, monthlyData, currentGW);
             });
         });
     }
@@ -96,16 +88,19 @@ function setupAdminButton(standings, finesData, monthlyData, currentGW) {
     const btn = document.createElement('button');
     btn.id = 'btn-admin-toggle';
     btn.style.cssText = 'margin-top: 15px; font-size: 0.8rem; background: none; border: 1px dashed #bbb; color: #666; cursor: pointer; padding: 4px 10px; border-radius: 4px; display: block;';
-    btn.textContent = getAdminPin() ? '🔒 Bloquear Edição' : '🔑 Modo Admin';
+    btn.textContent = checkIsAdmin() ? '🔒 Bloquear Edição' : '🔑 Modo Admin';
 
     btn.addEventListener('click', () => {
-        if (getAdminPin()) {
-            sessionStorage.removeItem('triveladas_admin_pin');
+        if (checkIsAdmin()) {
+            sessionStorage.removeItem('triveladas_admin');
             alert('Modo Admin desativado.');
         } else {
             const pass = prompt('Introduz o PIN de administrador:');
-            if (pass) {
-                sessionStorage.setItem('triveladas_admin_pin', pass);
+            if (pass === ADMIN_PIN) {
+                sessionStorage.setItem('triveladas_admin', 'true');
+                alert('Modo Admin ativado com sucesso!');
+            } else if (pass !== null) {
+                alert('PIN incorreto.');
             }
         }
         renderFinance(standings, finesData, monthlyData, currentGW);

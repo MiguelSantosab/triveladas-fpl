@@ -1,42 +1,37 @@
 // js/domain/storage.js
 
-let cachedPayments = null;
+const STORAGE_KEYS = {
+    CUSTOM_FINES: 'triveladas_custom_fines',
+    PAYMENTS: 'triveladas_saved_payments'
+};
 
-export async function getSavedPayments() {
+export function getSavedPayments() {
     try {
-        const res = await fetch('/api/payments');
-        if (res.ok) {
-            cachedPayments = await res.json();
-            return cachedPayments;
-        }
+        const data = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
+        return data ? JSON.parse(data) : {};
     } catch (e) {
-        console.warn("API de pagamentos indisponível, a usar vazio:", e);
+        console.error("Erro ao ler pagamentos:", e);
+        return {};
     }
-    return cachedPayments || {};
 }
 
-export async function savePayment(managerId, amount, pin) {
+export function savePayment(managerId, amount) {
     try {
-        const res = await fetch('/api/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ managerId, amount, pin })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Erro ao guardar.");
-        }
-
-        const data = await res.json();
-        cachedPayments = data.payments;
+        const payments = getSavedPayments();
+        payments[managerId] = Number(amount) || 0;
+        localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(payments));
         return true;
     } catch (e) {
-        alert(e.message);
+        console.error("Erro ao gravar pagamento:", e);
         return false;
     }
 }
 
 export function getCustomFines() {
-    return {};
+    try {
+        const data = localStorage.getItem(STORAGE_KEYS.CUSTOM_FINES);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        return {};
+    }
 }

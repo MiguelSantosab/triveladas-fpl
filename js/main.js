@@ -51,7 +51,7 @@ async function loadAllData() {
             getManagerHistory(m.entry)
                 .then(hist => ({ id: m.entry, hist }))
                 .catch(err => {
-                    console.warn(`Não foi possível carregar histórico do manager ${m.entry}`, err);
+                    console.warn(`Histórico indisponível para ${m.entry}`, err);
                     return { id: m.entry, hist: { current: [] } };
                 })
         );
@@ -70,15 +70,10 @@ async function loadAllData() {
 function renderAllSections() {
     const managers = appState.standings?.standings?.results || [];
 
-    // Renderiza primeiro o que é síncrono para garantir que a tabela geral aparece logo
     renderGeral(managers, appState.finesData, appState.currentGW);
     renderMiniLeagues(managers, appState.histories, appState.currentGW);
     renderMatrix(managers, appState.histories, appState.currentGW);
-    
-    // Renderiza as finanças
-    renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW).catch(err => {
-        console.error("Erro na secção financeira:", err);
-    });
+    renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW);
 }
 
 function showLoading(isLoading) {
