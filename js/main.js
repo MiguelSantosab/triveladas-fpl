@@ -1,3 +1,4 @@
+// js/main.js
 import { CONFIG } from './config.js';
 import { getLeagueStandings, getBootstrapStatic, getManagerHistory } from './api/fplService.js';
 import { calculateAllFines, calculateMonthlyWinners } from './domain/calculations.js';
@@ -21,7 +22,7 @@ async function init() {
 
     try {
         await loadAllData();
-        renderAllSections();
+        await renderAllSections();
     } catch (error) {
         console.error('Erro ao inicializar app:', error);
     } finally {
@@ -67,13 +68,13 @@ async function loadAllData() {
     appState.monthlyData = calculateMonthlyWinners(managers, appState.histories);
 }
 
-function renderAllSections() {
+async function renderAllSections() {
     const managers = appState.standings?.standings?.results || [];
 
     renderGeral(managers, appState.finesData, appState.currentGW);
     renderMiniLeagues(managers, appState.histories, appState.currentGW);
     renderMatrix(managers, appState.histories, appState.currentGW);
-    renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW);
+    await renderFinance(managers, appState.finesData, appState.monthlyData, appState.currentGW);
 }
 
 function showLoading(isLoading) {

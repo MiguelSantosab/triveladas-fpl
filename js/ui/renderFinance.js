@@ -5,18 +5,22 @@ function checkIsAdmin() {
     return sessionStorage.getItem('triveladas_admin') === 'true';
 }
 
+function getAdminPin() {
+    return sessionStorage.getItem('triveladas_admin_pin') || '';
+}
+
 function calculateMonthlyFees(currentGW = 1) {
     const monthStartGWs = [1, 4, 7, 11, 14, 20, 24, 28, 31, 36];
     const monthsElapsed = monthStartGWs.filter(gw => currentGW >= gw).length;
     return monthsElapsed * 2.0;
 }
 
-export function renderFinance(standings = [], finesData = {}, monthlyData = null, currentGW = 1) {
+export async function renderFinance(standings = [], finesData = {}, monthlyData = null, currentGW = 1) {
     const tbody = document.querySelector('#table-finance tbody');
     if (!tbody) return;
 
     const isAdmin = checkIsAdmin();
-    const payments = (typeof getSavedPayments === 'function') ? getSavedPayments() : {};
+    const payments = await getSavedPayments();
     let grandTotal = 0;
     let totalPaid = 0;
 
@@ -59,13 +63,15 @@ export function renderFinance(standings = [], finesData = {}, monthlyData = null
 
     if (isAdmin) {
         tbody.querySelectorAll('.input-pago').forEach(input => {
-            input.addEventListener('change', (e) => {
+            input.addEventListener('change', async (e) => {
                 const id = e.target.getAttribute('data-id');
                 const val = parseFloat(e.target.value) || 0;
-                if (typeof savePayment === 'function') {
-                    savePayment(id, val);
+                const pin = getAdminPin();
+
+                const success = await savePayment(id, val, pin);
+                if (success) {
+                    await renderFinance(standings, finesData, monthlyData, currentGW);
                 }
-                renderFinance(standings, finesData, monthlyData, currentGW);
             });
         });
     }
@@ -93,8 +99,9 @@ function setupAdminButton(standings, finesData, monthlyData, currentGW) {
     btn.addEventListener('click', async () => {
         if (checkIsAdmin()) {
             sessionStorage.removeItem('triveladas_admin');
+            sessionStorage.removeItem('triveladas_admin_pin');
             alert('Modo Admin desativado.');
-            renderFinance(standings, finesData, monthlyData, currentGW);
+            await renderFinance(standings, finesData, monthlyData, currentGW);
         } else {
             const pass = prompt('Introduz o PIN de administrador:');
             if (!pass) return;
@@ -108,8 +115,9 @@ function setupAdminButton(standings, finesData, monthlyData, currentGW) {
 
                 if (res.ok) {
                     sessionStorage.setItem('triveladas_admin', 'true');
+                    sessionStorage.setItem('triveladas_admin_pin', pass.trim());
                     alert('Modo Admin ativado com sucesso!');
-                    renderFinance(standings, finesData, monthlyData, currentGW);
+                    await renderFinance(standings, finesData, monthlyData, currentGW);
                 } else {
                     alert('PIN incorreto.');
                 }

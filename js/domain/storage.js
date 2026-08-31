@@ -1,28 +1,43 @@
 // js/domain/storage.js
 
 const STORAGE_KEYS = {
-    CUSTOM_FINES: 'triveladas_custom_fines',
-    PAYMENTS: 'triveladas_saved_payments'
+    CUSTOM_FINES: 'triveladas_custom_fines'
 };
 
-export function getSavedPayments() {
+export async function getSavedPayments() {
     try {
-        const data = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
-        return data ? JSON.parse(data) : {};
+        const res = await fetch('/api/payments');
+        if (!res.ok) throw new Error("Falha ao obter pagamentos");
+        return await res.json();
     } catch (e) {
-        console.error("Erro ao ler pagamentos:", e);
+        console.error("Erro ao ler pagamentos da base de dados:", e);
         return {};
     }
 }
 
-export function savePayment(managerId, amount) {
+export async function savePayment(managerId, amount, pin) {
     try {
-        const payments = getSavedPayments();
-        payments[managerId] = Number(amount) || 0;
-        localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(payments));
+        const res = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pin: pin,
+                managerId: managerId,
+                amount: Number(amount) || 0
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.error || "Erro ao gravar pagamento.");
+            return false;
+        }
+
         return true;
     } catch (e) {
         console.error("Erro ao gravar pagamento:", e);
+        alert("Erro de ligação ao servidor.");
         return false;
     }
 }
