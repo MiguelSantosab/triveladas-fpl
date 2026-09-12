@@ -10,7 +10,7 @@ function getAdminPin() {
 }
 
 function calculateMonthlyFees(currentGW = 1) {
-    const monthStartGWs = [1, 4, 7, 11, 14, 20, 24, 28, 31, 36];
+    const monthStartGWs = [1, 3, 6, 10, 13, 19, 24, 28, 31, 34];
     const monthsElapsed = monthStartGWs.filter(gw => currentGW >= gw).length;
     return monthsElapsed * 2.0;
 }
