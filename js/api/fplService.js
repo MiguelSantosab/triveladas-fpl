@@ -45,9 +45,6 @@ export async function getLeagueStandings(leagueId = CONFIG.LEAGUE_ID) {
             entry: entry.entry,
             entry_name: entry.entry_name
         }));
-    } else if (hasStandings) {
-        // APLICA OS AJUSTES MANUAIS AOS RESULTADOS DA LIGA
-        data.standings.results = applyAdjustments(data.standings.results);
     }
 
     return data;
