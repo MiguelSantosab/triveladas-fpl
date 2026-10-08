@@ -1,5 +1,8 @@
 import { CONFIG } from '../config.js';
 
+// Importa o teu módulo criado à parte (ajusta o caminho se necessário)
+import { applyAdjustments } from '../domain/manualAdjustments.js';
+
 // Função auxiliar para chamar a Serverless Function na Vercel (/api/fpl)
 async function fetchFPL(endpoint) {
     const url = `/api/fpl?endpoint=${encodeURIComponent(endpoint)}`;
@@ -45,6 +48,9 @@ export async function getLeagueStandings(leagueId = CONFIG.LEAGUE_ID) {
             entry: entry.entry,
             entry_name: entry.entry_name
         }));
+    } else if (hasStandings) {
+        // APLICA OS AJUSTES MANUAIS AOS RESULTADOS DA LIGA
+        data.standings.results = applyAdjustments(data.standings.results);
     }
 
     return data;
