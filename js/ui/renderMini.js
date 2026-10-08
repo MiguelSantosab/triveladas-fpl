@@ -1,4 +1,5 @@
 // js/ui/renderMini.js
+import { MANUAL_ADJUSTMENTS } from '../domain/manualAdjustments.js';
 
 export function renderMiniLeagues(standings = [], histories = {}, currentGW = 1) {
     const miniIntervals = [
@@ -29,9 +30,24 @@ export function renderMiniLeagues(standings = [], histories = {}, currentGW = 1)
 
             // Somar apenas os pontos das GWs que pertencem a este intervalo
             let points = 0;
+            teamHistory.history.forEach(gw => { // Nota: Ajusta para .history ou .current conforme a estrutura do teu objeto de histórico
+                // (Se no teu código original usavas histories[managerId]?.current, mantém essa propriedade)
+            });
+
+            // Vamos usar o teu ciclo original e aplicar o ajuste de forma isolada:
             teamHistory.forEach(gw => {
                 if (gw.event >= mini.start && gw.event <= mini.end) {
-                    points += gw.points;
+                    let gwPoints = gw.points;
+
+                    // Verifica se é o André na jornada 4
+                    const adjustment = MANUAL_ADJUSTMENTS.find(
+                        adj => adj.playerId === managerId && adj.gameweek === gw.event
+                    );
+                    if (adjustment) {
+                        gwPoints += adjustment.pointsAdjustment; // Subtrai os 40 pontos só aqui
+                    }
+
+                    points += gwPoints;
                 }
             });
 
@@ -45,10 +61,10 @@ export function renderMiniLeagues(standings = [], histories = {}, currentGW = 1)
         // 2. Ordenar por pontos descendentes
         miniScores.sort((a, b) => b.points - a.points);
 
-        // 3. Renderizar linhas com cálculo da multa (1º = 0€, 2º = 0.50€, 3º = 1.00€, etc.)
+        // 3. Renderizar linhas com cálculo da multa
         tbody.innerHTML = miniScores.map((item, index) => {
             const pos = index + 1;
-            const fine = index * 0.50; // Regra: 1º isento, cada posição seguinte soma 0.50€
+            const fine = index * 0.50;
 
             return `
                 <tr>
