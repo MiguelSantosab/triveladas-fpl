@@ -1,4 +1,5 @@
 // js/main.js
+
 import { CONFIG } from './config.js';
 import { getLeagueStandings, getBootstrapStatic, getManagerHistory } from './api/fplService.js';
 import { calculateAllFines, calculateMonthlyWinners } from './domain/calculations.js';
