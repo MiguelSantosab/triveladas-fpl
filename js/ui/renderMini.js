@@ -1,4 +1,5 @@
 // js/ui/renderMini.js
+import { MANUAL_ADJUSTMENTS } from '../domain/manualAdjustments.js'; // Importa os ajustes
 
 export function renderMiniLeagues(standings = [], histories = {}, currentGW = 1) {
     const miniIntervals = [
@@ -25,13 +26,23 @@ export function renderMiniLeagues(standings = [], histories = {}, currentGW = 1)
         const miniScores = standings.map(manager => {
             const managerId = manager.entry;
             const managerName = manager.player_name || manager.entry_name || 'Manager';
-            const teamHistory = histories[managerId]?.current || [];
+            let teamHistory = histories[managerId]?.current || [];
 
             // Somar apenas os pontos das GWs que pertencem a este intervalo
             let points = 0;
             teamHistory.forEach(gw => {
                 if (gw.event >= mini.start && gw.event <= mini.end) {
-                    points += gw.points;
+                    let gwPoints = gw.points;
+
+                    // VERIFICA SE HÁ AJUSTE MANUAL PARA ESTA JORNADA E ESTE JOGADOR
+                    const adjustment = MANUAL_ADJUSTMENTS.find(
+                        adj => adj.playerId === managerId && adj.gameweek === gw.event
+                    );
+                    if (adjustment) {
+                        gwPoints += adjustment.pointsAdjustment; // Aplica o desconto (ex: -40)
+                    }
+
+                    points += gwPoints;
                 }
             });
 
