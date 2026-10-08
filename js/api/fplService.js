@@ -1,8 +1,5 @@
 import { CONFIG } from '../config.js';
 
-// Importa o teu módulo criado à parte (ajusta o caminho se necessário)
-import { applyAdjustments } from '../domain/manualAdjustments.js';
-
 // Função auxiliar para chamar a Serverless Function na Vercel (/api/fpl)
 async function fetchFPL(endpoint) {
     const url = `/api/fpl?endpoint=${encodeURIComponent(endpoint)}`;
